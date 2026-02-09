@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Review Agent</title>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; line-height: 1.6; margin: 2rem; background-color: #f8f9fa; color: #212529; }
+        h1 { color: #343a40; }
+        #controls { margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+        button { font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer; border-radius: 6px; border: 1px solid transparent; background-color: #007bff; color: white; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        #results-container { white-space: pre-wrap; background-color: #e9ecef; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; min-height: 100px; }
+    </style>
+</head>
+<body>
+    <h1>Code Review Agent</h1>
+    <div id="controls">
+        <input type="file" id="file-input" />
+        <button id="review-button">Start Review</button>
+    </div>
+    <h2>Live Review Output:</h2>
+    <pre id="results-container">Awaiting file submission...</pre>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const reviewButton = document.getElementById('review-button');
+        const resultsContainer = document.getElementById('results-container');
+
+        reviewButton.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                resultsContainer.textContent = "Please select a file first.";
+                return;
+            }
+
+            // Disable button and clear previous results
+            reviewButton.disabled = true;
+            resultsContainer.textContent = "Starting review... This may take a moment to begin streaming.";
+
+            const formData = new FormData();
+            formData.append('code_file', file);
+
+            try {
+                // Make the POST request to our streaming endpoint
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                // Get a reader to process the response body as a stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let streaming = true;
+
+                // Clear the container for the new stream
+                resultsContainer.textContent = "";
+
+                // Loop forever to read from the stream
+                while (streaming) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        streaming = false;
+                        break;
+                    }
+                    // Decode the chunk of data (which is a Uint8Array) into text
+                    const textChunk = decoder.decode(value, { stream: true });
+                    // Append the new text to our results container
+                    resultsContainer.textContent += textChunk;
+                }
+                
+                console.log("Stream finished.");
+
+            } catch (error) {
+                resultsContainer.textContent = "An error occurred: " + error.message;
+                console.error("Fetch error:", error);
+            } finally {
+                // Re-enable the button once everything is done
+                reviewButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

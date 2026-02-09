@@ -41,3 +41,10 @@ Initialize empty list: `all_individual_reviews`
   |
   V
 END
+
+## Usage Instructions
+
+1. Open [http://127.0.0.1:5000/]
+2. **Browse..** Upload your C file
+3. **Start Review**
+4. Review points will be displayed in **Live Review Output**

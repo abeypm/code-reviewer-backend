@@ -1,23 +1,16 @@
 # rag_server.py
 """
 This script runs a Flask web server for a RAG-based code reviewer.
-
-This version implements a "Direct Specialist Reporting" model without a final consolidation step.
-
-Features:
-- Loops through a checklist to get focused reviews from a specialist LLM.
-- Instructs specialists to provide feedback in Markdown.
-- Combines all specialist reviews into a single Markdown report.
-- Saves the final report to a timestamped .md file in 'review_outputs/'.
-- Returns the complete report as a single JSON response.
-- NOTE: This is a synchronous, long-running process. Your API client must have a long timeout configured.
+This version has been converted to support streaming and includes a new endpoint
+to serve an HTML page (`index.html`) to correctly render the stream.
 """
 import os
 import json
 import chromadb
 import openai
 import datetime
-from flask import Flask, request, jsonify
+# NEW: Import Response and send_from_directory
+from flask import Flask, request, jsonify, Response, send_from_directory
 from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 
@@ -70,88 +63,111 @@ except Exception as e:
 print("✅ Server is fully initialized and ready to accept requests.")
 
 
-# --- Main API Endpoint (Synchronous, No Consolidator) ---
+# --- NEW: Route to serve the HTML front-end page ---
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+
+# --- Main API Endpoint (Converted to Streaming) ---
 @app.route("/ask", methods=['POST'])
 def ask_agent():
-    """Handles the file upload and runs the multi-step specialist review."""
-    print("\nReceived a new request for a direct specialist report...")
+    """Handles the file upload and streams back a series of specialist reviews."""
+    print("\nReceived a new request for a direct specialist stream...")
 
     if 'code_file' not in request.files:
         return jsonify({"error": "No 'code_file' part in the request"}), 400
     file = request.files['code_file']
-    if file.filename == '':
+    original_filename = file.filename
+    if original_filename == '':
         return jsonify({"error": "No selected file"}), 400
+    code_content = file.read().decode('utf-8')
 
-    try:
-        code_content = file.read().decode('utf-8')
-        print(f"  - Received file '{file.filename}' ({len(code_content)} chars).")
+    # The main logic is now inside a generator function
+    def generate_reviews(code_to_review, filename):
+        try:
+            # Buffer flush to defeat proxy buffering
+            yield (' ' * 4096).encode('utf-8')
 
-        with open('review_checklist.json', 'r', encoding="utf-8") as f:
-            checklist = json.load(f)
-        print(f"  - Loaded {len(checklist)} items from checklist.")
+            print(f"  - Starting review generator for file '{filename}' ({len(code_to_review)} chars).")
+            with open('review_checklist.json', 'r', encoding="utf-8") as f:
+                checklist = json.load(f)
+            print(f"  - Loaded {len(checklist)} items from checklist.")
 
-        # --- PHASE 1: INDIVIDUAL REVIEW LOOP ---
-        individual_reviews = []
-        # The tqdm progress bar has been removed from this loop
-        for item in checklist:
-            print(f"    - Starting review for: '{item['focus']}'...")
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"{timestamp}_review_for_{filename}.md"
+            output_filepath = os.path.join(OUTPUT_DIR, output_filename)
             
-            results = collection.query(query_texts=[item['query']], n_results=2)
-            retrieved_passages = ""
-            if results and results.get('documents') and len(results['documents']) > 0 and results['documents'][0]:
-                retrieved_passages = "\n\n---\n\n".join(results['documents'][0])
-            
-            system_prompt = f"""
+            for item in checklist:
+                print(f"    - Starting review for: '{item['focus']}'...")
+                heading = f"\n\n---\n\n## Specialist Review for: {item['focus']}\n\n"
+                yield heading.encode('utf-8')
+                
+                results = collection.query(query_texts=[item['query']], n_results=2)
+                retrieved_passages = ""
+                if results and results.get('documents') and len(results['documents']) > 0 and results['documents'][0]:
+                    retrieved_passages = "\n\n---\n\n".join(results['documents'][0])
+                else:
+                    warning_message = f"_Note: Could not find specific textbook passages for '{item['focus']}'. Review is based on general knowledge._\n\n"
+                    yield warning_message.encode('utf-8')
+                    with open(output_filepath, "a", encoding="utf-8") as f:
+                        f.write(heading + warning_message)
+                
+                system_prompt = f"""
 You are a highly specialized code reviewer. Your ONLY focus is on reviewing code for one specific principle: **{item['focus']}**.
 You will be given passages from a textbook related to this principle and a piece of code.
 Analyze the code strictly through the lens of **{item['focus']}** based on the provided passages. Ignore all other potential issues.
 **Format your feedback using Markdown.** Use bullet points for suggestions and backticks for code snippets.
 """
-            user_prompt = f"""
+                user_prompt = f"""
 **TEXTBOOK PASSAGES related to {item['focus']}:**
 <passages>
 {retrieved_passages}
 </passages>
-
 **CODE TO REVIEW:**
 <code>
-{code_content}
+{code_to_review}
 </code>
-
 Please provide your specialized review focusing only on **{item['focus']}**, formatted in Markdown.
 """
-            response = client.chat.completions.create(
-                model=model_to_use,
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
-            )
-            focused_review = response.choices[0].message.content
-            # Add a heading to each review for clarity in the final combined file
-            review_with_heading = f"## Specialist Review for: {item['focus']}\n\n{focused_review}"
-            individual_reviews.append(review_with_heading)
-            print(f"    - Completed review for: '{item['focus']}'.")
+                
+                # Request a stream from the API
+                stream = client.chat.completions.create(
+                    model=model_to_use,
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
+                    stream=True
+                )
 
-        # --- COMBINE AND SAVE RESULTS ---
-        print("  - All specialist reviews complete. Combining and saving results...")
-        
-        # Join all the individual markdown reviews into a single string, separated by a horizontal rule
-        final_markdown_content = "\n\n---\n\n".join(individual_reviews)
+                full_specialist_review = ""
+                for chunk in stream:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        content = chunk.choices[0].delta.content
+                        if content:
+                            full_specialist_review += content
+                            yield content.encode('utf-8') # Stream each token
 
-        # Save the combined content to a single .md file
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = f"{timestamp}_review_for_{file.filename}.md"
-        output_filepath = os.path.join(OUTPUT_DIR, output_filename)
-        with open(output_filepath, "w", encoding="utf-8") as f:
-            f.write(final_markdown_content)
-        print(f"  - Final combined review saved to '{output_filepath}'.")
+                # Save the full review to the file after the stream is done
+                if retrieved_passages:
+                     with open(output_filepath, "a", encoding="utf-8") as f:
+                        f.write(heading + full_specialist_review)
+                else:
+                    with open(output_filepath, "a", encoding="utf-8") as f:
+                        f.write(full_specialist_review)
+                
+                print(f"    - Completed streaming review for: '{item['focus']}'.")
 
-        # Return the same combined content in the JSON response
-        return jsonify({"answer": final_markdown_content})
+            print("\n✅ All specialist reviews streamed successfully.")
+        except Exception as e:
+            print(f"  - An error occurred during generator execution: {e}")
+            yield json.dumps({"error": str(e)}).encode('utf-8')
 
-    except Exception as e:
-        print(f"  - An error occurred during processing: {e}")
-        return jsonify({"error": str(e)}), 500
+    # Return a streaming response
+    return Response(generate_reviews(code_content, original_filename), mimetype='text/event-stream')
+
 
 # --- Run Flask App ---
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    # Disable reloader to prevent double-loading models during startup
+    app.run(port=5000, debug=True, use_reloader=False)
+
