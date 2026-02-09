@@ -1,3 +1,14 @@
+# Python virtual environment
 venv/
+
+# Environment variables
 .env
+
 last_prompt.log
+
+# Review output files
+review_outputs/
+
+# IDE and OS specific files
+__pycache__/
+.DS_Store

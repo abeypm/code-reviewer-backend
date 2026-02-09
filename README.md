@@ -36,14 +36,6 @@ Initialize empty list: `all_individual_reviews`
   V
 [5. Final Consolidation]
   |
-  +--> [A. Construct Consolidation Prompt]
-  |      - System Prompt: "You are a lead reviewer..."
-  |      - Context: Full list of all individual reviews
-  |
-  +--> [B. Final LLM Call]
-  |      - Ask the LLM to synthesize, de-duplicate,
-  |        and merge all feedback into one report
-  |
   V
 [6. Return Final Comprehensive Review]
   |
