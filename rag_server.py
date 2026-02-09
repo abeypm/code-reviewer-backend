@@ -1,46 +1,32 @@
 # rag_server.py
 """
 This script runs a Flask web server that acts as the backend for a RAG-based code reviewer.
-It exposes a single endpoint `/ask` which accepts a code file upload.
-
-The server performs the following steps:
-1. Receives a code file.
-2. Searches a ChromaDB vector database (pre-indexed with a textbook) for relevant passages.
-3. Constructs a detailed prompt containing the code and the retrieved passages.
-4. **Saves the full prompt to a file named 'last_prompt.log' for debugging.**
-5. Calls an LLM (either standard OpenAI or Azure OpenAI, based on .env configuration) to get a review.
-6. Returns the AI-generated review as a JSON response.
-
-To run:
-1. Ensure all dependencies from requirements.txt are installed.
-2. Ensure you have run index.py to create the 'db' folder.
-3. Ensure your .env file is correctly configured for either standard OpenAI or Azure OpenAI.
-4. Run `python rag_server.py` in your terminal.
+This version implements an advanced, multi-step "Checklist-Driven Review" process.
 """
 import os
+import json
 import chromadb
 import openai
 from flask import Flask, request, jsonify
 from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 
-# Load environment variables from .env file at the very start
 load_dotenv()
 
 # --- Configuration ---
 COLLECTION_NAME = "clean_code_book"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-LOG_FILE_NAME = "last_prompt.log" # The file where the prompt will be saved
+LOG_FILE_NAME = "last_consolidation_prompt.log"
 
 # --- Initialize Flask App ---
 app = Flask(__name__)
 
-# --- Global Objects - Loaded once at startup for efficiency ---
-print("Loading models and setting up clients... This may take a moment.")
+# --- Global Objects - Loaded once at startup ---
+print("Loading models and setting up clients...")
 client = None
 model_to_use = None
 
-# --- Client Setup: Detects and configures either Azure or Standard OpenAI ---
+# --- Client Setup (THIS SECTION IS NOW CORRECTED) ---
 api_type = os.getenv("OPENAI_API_TYPE")
 
 if api_type == "azure":
@@ -70,17 +56,11 @@ else:
     model_to_use = os.getenv("OPENAI_MODEL_NAME", "gpt-3.5-turbo")
     print("Standard OpenAI client configured.")
 
-# --- Embedding Function and Vector DB Setup ---
 try:
     print("Setting up embedding function and vector database...")
-    sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=EMBEDDING_MODEL_NAME
-    )
+    sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=EMBEDDING_MODEL_NAME)
     db_client = chromadb.PersistentClient(path="db")
-    collection = db_client.get_collection(
-        name=COLLECTION_NAME,
-        embedding_function=sentence_transformer_ef
-    )
+    collection = db_client.get_collection(name=COLLECTION_NAME, embedding_function=sentence_transformer_ef)
     print("Embedding function and vector database loaded successfully.")
 except Exception as e:
     raise RuntimeError(f"Failed to load models or database. Have you run index.py? Error: {e}")
@@ -91,43 +71,43 @@ print("✅ Server is fully initialized and ready to accept requests.")
 # --- Main API Endpoint ---
 @app.route("/ask", methods=['POST'])
 def ask_agent():
-    """Handles the file upload and returns the AI-powered code review."""
-    print("\nReceived a new request to /ask...")
+    """Handles the file upload and runs the multi-step, checklist-driven review."""
+    print("\nReceived a new request for a checklist-driven review...")
 
-    # 1. Handle File Upload
     if 'code_file' not in request.files:
-        print("  - Error: No 'code_file' part in the request.")
         return jsonify({"error": "No 'code_file' part in the request"}), 400
     file = request.files['code_file']
     if file.filename == '':
-        print("  - Error: No file selected.")
         return jsonify({"error": "No selected file"}), 400
 
-    if file:
+    try:
+        code_content = file.read().decode('utf-8')
+        print(f"  - Received file '{file.filename}' ({len(code_content)} chars).")
+
         try:
-            code_content = file.read().decode('utf-8')
-            print(f"  - Received file '{file.filename}' ({len(code_content)} chars).")
+            with open('review_checklist.json', 'r', encoding="utf-8") as f:
+                checklist = json.load(f)
+            print(f"  - Successfully loaded {len(checklist)} items from review_checklist.json.")
+        except FileNotFoundError:
+            return jsonify({"error": "review_checklist.json not found."}), 500
+        except json.JSONDecodeError:
+            return jsonify({"error": "Failed to parse review_checklist.json."}), 500
 
-            # 2. Retrieve Relevant Passages (RAG)
-            print("  - Searching knowledge base for relevant passages...")
-            results = collection.query(
-                query_texts=[code_content],
-                n_results=3
-            )
+        # --- PHASE 1: INDIVIDUAL REVIEW LOOP ---
+        individual_reviews = []
+        for item in checklist:
+            print(f"    - Starting review for: '{item['focus']}'...")
+
+            results = collection.query(query_texts=[item['query']], n_results=2)
             retrieved_passages = "\n\n---\n\n".join(results['documents'][0])
-            print("  - Found relevant passages.")
 
-            # 3. Augment Prompt
-            system_prompt = """
-You are an world-class expert software engineer specializing in writing clean, maintainable code. 
-You will be provided with passages from a software engineering textbook and a piece of code.
-Your task is to act as a helpful code reviewer. Analyze the code and provide a review based ONLY on the principles and examples found in the provided textbook passages.
-Do not use any outside knowledge. If the passages are not relevant, state that you cannot provide a review based on the given context.
-Structure your feedback clearly. Start with a high-level summary, then use bullet points for specific suggestions.
+            system_prompt = f"""
+You are a highly specialized code reviewer. Your ONLY focus is on reviewing code for one specific principle: **{item['focus']}**.
+You will be given passages from a textbook related to this principle and a piece of code.
+Analyze the code strictly through the lens of **{item['focus']}** based on the provided passages. Ignore all other potential issues.
 """
-            
             user_prompt = f"""
-**TEXTBOOK PASSAGES:**
+**TEXTBOOK PASSAGES related to {item['focus']}:**
 <passages>
 {retrieved_passages}
 </passages>
@@ -137,54 +117,59 @@ Structure your feedback clearly. Start with a high-level summary, then use bulle
 {code_content}
 </code>
 
-Please provide your expert review based on the textbook passages.
+Please provide your specialized review focusing only on **{item['focus']}**.
 """
-            
-            # --- MODIFIED FOR DEBUGGING ---
-            # Construct the full prompt content and save it to a log file
-            prompt_content_to_log = f"""
-{'='*80}
---- CONSTRUCTED LLM PROMPT (Model: {model_to_use}) ---
-{'='*80}
-
-[SYSTEM PROMPT]
-{system_prompt}
-
-{'-'*80}
-
-[USER PROMPT]
-{user_prompt}
-
-{'='*80}
---- END OF PROMPT ---
-"""
-            try:
-                with open(LOG_FILE_NAME, "w", encoding="utf-8") as f:
-                    f.write(prompt_content_to_log)
-                print(f"  - Full LLM prompt saved to '{LOG_FILE_NAME}' for debugging.")
-            except Exception as log_e:
-                print(f"  - Warning: Could not write prompt to log file. Error: {log_e}")
-            # --- END OF DEBUGGING BLOCK ---
-
-            # 4. Call LLM
-            print(f"  - Calling LLM ('{model_to_use}')...")
             response = client.chat.completions.create(
                 model=model_to_use,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
+                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
             )
-            llm_answer = response.choices[0].message.content
-            print("  - Successfully received response from LLM.")
-            return jsonify({"answer": llm_answer})
+            focused_review = response.choices[0].message.content
+            individual_reviews.append(f"## Specialist Review for: {item['focus']}\n\n{focused_review}")
+            print(f"    - Completed review for: '{item['focus']}'.")
 
-        except Exception as e:
-            print(f"  - An error occurred during processing: {e}")
-            return jsonify({"error": str(e)}), 500
+        # --- PHASE 2: FINAL CONSOLIDATION ---
+        print("  - All individual reviews complete. Starting final consolidation...")
 
-    return jsonify({"error": "An unknown server error occurred"}), 500
+        all_reviews_text = "\n\n".join(individual_reviews)
 
+        consolidation_system_prompt = """
+You are a lead software architect responsible for finalizing a code review.
+You have been provided with a set of reviews from several specialist AIs, each focusing on a different clean code principle.
+Your task is to synthesize these individual reviews into a single, cohesive, de-duplicated, and actionable report for the original developer.
+
+**Instructions:**
+1.  **Synthesize and Merge:** Combine related points from different specialist reviews.
+2.  **De-duplicate:** If multiple specialists commented on the same line of code for similar reasons, merge their feedback into a single, comprehensive comment.
+3.  **Prioritize:** Structure the final report with the most critical issues first.
+4.  **Format:** Use clear headings and bullet points. Be encouraging and constructive. Do not mention the specialist reviewers; present the feedback as a unified report from the team.
+"""
+        consolidation_user_prompt = f"""
+Here are the raw reviews from the specialist AIs. Please consolidate them into one final report.
+
+**RAW SPECIALIST REVIEWS:**
+{all_reviews_text}
+"""
+        
+        try:
+            with open(LOG_FILE_NAME, "w", encoding="utf-8") as f:
+                f.write(consolidation_user_prompt)
+            print(f"  - Final consolidation prompt saved to '{LOG_FILE_NAME}'.")
+        except Exception as log_e:
+            print(f"  - Warning: Could not write prompt to log file. Error: {log_e}")
+
+        print(f"  - Calling LLM for final consolidation ('{model_to_use}')...")
+        final_response = client.chat.completions.create(
+            model=model_to_use,
+            messages=[{"role": "system", "content": consolidation_system_prompt}, {"role": "user", "content": consolidation_user_prompt}]
+        )
+        final_review = final_response.choices[0].message.content
+        print("  - Successfully received final consolidated review.")
+
+        return jsonify({"answer": final_review})
+
+    except Exception as e:
+        print(f"  - An error occurred during processing: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # --- Run Flask App ---
 if __name__ == '__main__':
