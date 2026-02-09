@@ -1,0 +1,307 @@
+[
+  {
+    "id": "c1_inappropriate_information",
+    "query": "Comments should not contain metadata like author names, dates, or issue tracker IDs; this information belongs in version control.",
+    "focus": "Comments"
+  },
+  {
+    "id": "c2_obsolete_comment",
+    "query": "Comments that are no longer accurate in relation to the code they describe are lies and must be corrected or removed.",
+    "focus": "Comments"
+  },
+  {
+    "id": "c3_redundant_comment",
+    "query": "Comments that state the obvious or merely repeat what the code already clearly says should be removed to reduce clutter.",
+    "focus": "Comments"
+  },
+  {
+    "id": "c4_poorly_written_comment",
+    "query": "If a comment is necessary, it must be clear, concise, grammatically correct, and free of spelling errors.",
+    "focus": "Comments"
+  },
+  {
+    "id": "c5_commented_out_code",
+    "query": "Commented-out code should be deleted immediately; version control systems are the proper place to store historical code.",
+    "focus": "Comments"
+  },
+  {
+    "id": "e1_complex_build",
+    "query": "The entire project should be buildable with a single, simple command directly from source control.",
+    "focus": "Environment & Build"
+  },
+  {
+    "id": "e2_complex_testing",
+    "query": "All tests in the project should be runnable with a single, simple command.",
+    "focus": "Environment & Build"
+  },
+  {
+    "id": "f1_too_many_arguments",
+    "query": "Functions should have a minimal number of arguments (ideally zero, one, or two); more than three indicates a need for refactoring, often by creating a parameter object.",
+    "focus": "Function Design"
+  },
+  {
+    "id": "f2_output_arguments",
+    "query": "Functions should return a value rather than modifying the state of arguments passed into them (side effects).",
+    "focus": "Function Design"
+  },
+  {
+    "id": "f3_flag_arguments",
+    "query": "Boolean flag arguments are a sign that a function does more than one thing and should be split into separate, explicit functions.",
+    "focus": "Function Design"
+  },
+  {
+    "id": "f4_dead_function",
+    "query": "Functions that are no longer called or reachable should be deleted from the codebase.",
+    "focus": "Code Clutter"
+  },
+  {
+    "id": "g1_multiple_languages",
+    "query": "A single source file should contain only one programming language; embedded code like CSS or SQL should be in its own file.",
+    "focus": "Code Structure"
+  },
+  {
+    "id": "g2_unimplemented_behavior",
+    "query": "Code should follow the Principle of Least Astonishment; implement the functionality that a programmer would reasonably expect.",
+    "focus": "Correctness & Design"
+  },
+  {
+    "id": "g3_boundary_errors",
+    "query": "Code must be robust and behave correctly at its boundaries, such as with empty lists, null inputs, or off-by-one errors.",
+    "focus": "Correctness & Testing"
+  },
+  {
+    "id": "g4_overridden_safeties",
+    "query": "Do not ignore or disable compiler warnings, have empty catch blocks, or otherwise subvert the built-in safety mechanisms of the language.",
+    "focus": "Code Safety"
+  },
+  {
+    "id": "g5_duplication",
+    "query": "Follow the Don't Repeat Yourself (DRY) principle; every piece of logic should have a single, authoritative representation in the system.",
+    "focus": "Code Duplication"
+  },
+  {
+    "id": "g6_wrong_abstraction_level",
+    "query": "All statements within a function should be at the same level of abstraction, one level below the function's name.",
+    "focus": "Code Structure"
+  },
+  {
+    "id": "g7_base_class_dependency",
+    "query": "A base class or interface should know nothing about the classes that derive from it, upholding the principles of abstraction.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g8_too_much_information",
+    "query": "Classes should expose as few variables and methods as possible (a minimal public API) to properly encapsulate their internal details.",
+    "focus": "Encapsulation"
+  },
+  {
+    "id": "g9_dead_code",
+    "query": "Code that is unreachable or can never be executed should be deleted from the codebase.",
+    "focus": "Code Clutter"
+  },
+  {
+    "id": "g10_vertical_separation",
+    "query": "Related concepts and code should be kept vertically close to each other in a source file to improve readability.",
+    "focus": "Formatting & Readability"
+  },
+  {
+    "id": "g11_inconsistency",
+    "query": "Be consistent in your choices; if you do something a certain way (naming, patterns), do it that way everywhere to avoid surprises.",
+    "focus": "Code Style"
+  },
+  {
+    "id": "g12_clutter",
+    "query": "The codebase should be free of things that don't matter, such as unused variables or empty default constructors.",
+    "focus": "Code Clutter"
+  },
+  {
+    "id": "g13_artificial_coupling",
+    "query": "Avoid coupling between two modules that do not have a direct, natural relationship; don't place code in an unnatural location.",
+    "focus": "Code Structure & Dependencies"
+  },
+  {
+    "id": "g14_feature_envy",
+    "query": "A method that seems more interested in the data of another class than its own should be moved to that other class.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g15_selector_arguments",
+    "query": "Avoid arguments that are used to 'select' the behavior of a function; this is a sign the function does more than one thing.",
+    "focus": "Function Design"
+  },
+  {
+    "id": "g16_obscured_intent",
+    "query": "Code should be written to be as clear and readable as possible, avoiding overly clever, dense, or cryptic implementations.",
+    "focus": "Readability"
+  },
+  {
+    "id": "g17_misplaced_responsibility",
+    "query": "Code should be placed where a reader would naturally and intuitively expect to find it.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g18_inappropriate_static",
+    "query": "A method should only be static if it has no dependency on object instance state; otherwise, it should be an instance method.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g19_explanatory_variables",
+    "query": "Break down long, complex expressions by introducing intermediate variables with meaningful names to clarify the logic.",
+    "focus": "Readability"
+  },
+  {
+    "id": "g20_descriptive_function_names",
+    "query": "A function's name should accurately and completely describe what the function does, including its side-effects.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "g21_understand_algorithm",
+    "query": "Ensure you fully understand the algorithm being implemented, as often complex code can be replaced by a much simpler, standard algorithm.",
+    "focus": "Correctness & Simplicity"
+  },
+  {
+    "id": "g22_explicit_dependencies",
+    "query": "If one module depends on another, that dependency should be made explicit (e.g., via constructor injection) rather than being hidden.",
+    "focus": "Code Structure & Dependencies"
+  },
+  {
+    "id": "g23_prefer_polymorphism",
+    "query": "When an action varies based on the type of an object, use polymorphism instead of switch statements or long if/else chains.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g24_standard_conventions",
+    "query": "Adhere to the well-established coding standards and conventions of the language and the specific project.",
+    "focus": "Code Style"
+  },
+  {
+    "id": "g25_magic_numbers",
+    "query": "Raw numbers with unexplained meaning ('magic numbers') should be replaced with named constants to improve readability and maintainability.",
+    "focus": "Readability"
+  },
+  {
+    "id": "g26_be_precise",
+    "query": "Avoid ambiguity in your code; use precise types (e.g., BigDecimal for money) and make unambiguous decisions.",
+    "focus": "Correctness & Design"
+  },
+  {
+    "id": "g27_structure_over_convention",
+    "query": "Enforce design decisions with code structure and language features rather than relying on developers to remember a convention.",
+    "focus": "Object-Oriented Design"
+  },
+  {
+    "id": "g28_encapsulate_conditionals",
+    "query": "Complex conditional logic should be extracted into a well-named function to document its purpose.",
+    "focus": "Readability"
+  },
+  {
+    "id": "g29_avoid_negative_conditionals",
+    "query": "State conditional expressions in a positive form whenever possible, as negatives are harder for the human brain to process.",
+    "focus": "Readability"
+  },
+  {
+    "id": "g30_do_one_thing",
+    "query": "A function should have a single, well-defined responsibility and should do it only.",
+    "focus": "Function Design"
+  },
+  {
+    "id": "g31_hidden_temporal_couplings",
+    "query": "Design your code so that methods do not have to be called in a specific, required order to function correctly.",
+    "focus": "Code Structure & Dependencies"
+  },
+  {
+    "id": "g32_dont_be_arbitrary",
+    "query": "Your choices in code (names, structure, etc.) should be deliberate and consistent, not arbitrary or random.",
+    "focus": "Code Style"
+  },
+  {
+    "id": "g33_encapsulate_boundary_conditions",
+    "query": "Boundary conditions should be handled and encapsulated in one place rather than being sprinkled throughout the client code.",
+    "focus": "Correctness & Duplication"
+  },
+  {
+    "id": "g34_stepdown_rule",
+    "query": "Also known as the Stepdown Rule; a function should tell a story, and its statements should be one level of abstraction below the function itself.",
+    "focus": "Code Structure"
+  },
+  {
+    "id": "n1_descriptive_names",
+    "query": "Names should tell you why a variable, function, or class exists, what it does, and how it is used; avoid generic or single-letter names.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n2_abstraction_in_names",
+    "query": "A name should reflect the abstraction level of the code it represents and not reveal implementation details (e.g., `users` instead of `userList`).",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n3_standard_nomenclature",
+    "query": "When implementing a known design pattern or algorithm, use the standard, well-known names associated with it (e.g., Factory, Strategy).",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n4_unambiguous_names",
+    "query": "Choose names that cannot be misinterpreted; a name should have a single, clear meaning in its context.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n5_name_length_scope",
+    "query": "The length of a variable's name should be proportional to its scope; a variable used across a large function needs a very descriptive name.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n6_avoid_encodings",
+    "query": "Do not encode type or scope information into names (e.g., Hungarian notation or `m_` prefixes); modern IDEs make this unnecessary.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "n7_names_describe_side_effects",
+    "query": "A function's name must describe everything it does, including any side-effects; if a function has a side-effect, its name must reflect that.",
+    "focus": "Naming Conventions"
+  },
+  {
+    "id": "t1_insufficient_tests",
+    "query": "A codebase should have enough tests to provide confidence in its correctness; complex logic without tests is a major risk.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t2_use_coverage_tool",
+    "query": "Use a code coverage tool to identify untested parts of the code rather than guessing about test coverage.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t3_dont_skip_trivial_tests",
+    "query": "Even the simplest and most trivial cases should be tested, as these tests serve as documentation and can uncover surprising bugs.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t4_ignored_tests",
+    "query": "Tests marked as 'ignored' represent an unresolved decision or ambiguity and should be addressed by either fixing the test or deleting it.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t5_test_boundary_conditions",
+    "query": "Thoroughly test the 'edges' of an algorithm: empty collections, nulls, zero, negative numbers, and off-by-one conditions.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t6_test_near_bugs",
+    "query": "When a bug is found, add exhaustive tests to the surrounding code, as a bug is often a sign of fragility in that area.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t7_failure_patterns",
+    "query": "Analyze the patterns among failing tests, as they can reveal the root cause of a problem more effectively than looking at individual failures.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t8_coverage_patterns",
+    "query": "Analyze code coverage patterns; high coverage on buggy code suggests hidden complexity, while low coverage on working code might be acceptable.",
+    "focus": "Testing"
+  },
+  {
+    "id": "t9_fast_tests",
+    "query": "Tests should run very quickly; if they are slow, developers won't run them frequently, which defeats their purpose.",
+    "focus": "Testing"
+  }
+]
